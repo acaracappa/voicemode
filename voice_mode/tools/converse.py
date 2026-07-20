@@ -1437,7 +1437,18 @@ def record_audio_with_silence_detection(max_duration: float, disable_silence_det
     """
     
     logger.info(f"record_audio_with_silence_detection called - VAD_AVAILABLE={VAD_AVAILABLE}, DISABLE_SILENCE_DETECTION={DISABLE_SILENCE_DETECTION}, min_duration={min_duration}")
-    
+
+    # Continuous capture (VOICEMODE_CONTINUOUS_CAPTURE=true): pull from the
+    # persistent echo-cancelled VPIO stream instead of opening a fresh
+    # recording stream per call. Falls back to the standard path on failure.
+    try:
+        from voice_mode.utils import continuous_capture
+        if continuous_capture.enabled():
+            return continuous_capture.capture_segment(max_duration)
+    except Exception as e:
+        logger.warning(f"continuous capture unavailable ({e}); using standard recording")
+
+
     if not VAD_AVAILABLE:
         logger.warning("webrtcvad not available, falling back to fixed duration recording")
         # For fallback, assume speech is present since we can't detect
